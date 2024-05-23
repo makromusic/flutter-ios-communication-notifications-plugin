@@ -3,77 +3,40 @@ import UIKit
 import UserNotifications
 
 class CommunicationNotificationPlugin {
-
-    // Function to check if a notification with the same content has been delivered
-    func hasDuplicateNotification(_ notificationInfo: NotificationInfo, completion: @escaping (Bool) -> Void) {
-        let notificationCenter = UNUserNotificationCenter.current()
-        
-        notificationCenter.getDeliveredNotifications { deliveredNotifications in
-            // Loop through the delivered notifications
-            for deliveredNotification in deliveredNotifications {
-                // Check the content of the delivered notification
-                if let notificationContent = deliveredNotification.request.content as? UNMutableNotificationContent,
-                   notificationContent.title == notificationInfo.senderName && notificationContent.body == notificationInfo.content {
-                    // If a duplicate notification is found, return true
-                    completion(true)
-                    return
-                }
-            }
-            
-            // If no duplicate notification is found, return false
-            completion(false)
-        }
-    }
-
-    func showNotification(_ notificationInfo: NotificationInfo) {
-        let notificationCenter = UNUserNotificationCenter.current()
-        notificationCenter.getNotificationSettings {
-            settings in switch settings.authorizationStatus {
-            case .authorized:
-                self.hasDuplicateNotification(notificationInfo) { hasDuplicate in
-                    if !hasDuplicate {
-                        // If no duplicate notification is found, proceed to show the new notification
-                        self.dispatchNotification(notificationInfo)
-                    }
-                }
-            case .denied:
-                return
-            case .notDetermined:
-                notificationCenter.requestAuthorization(options: [.alert, .sound]) {
-                    didAllow, _ in
-                    if didAllow {
-                        self.hasDuplicateNotification(notificationInfo) { hasDuplicate in
-                            if !hasDuplicate {
-                                // If no duplicate notification is found, proceed to show the new notification
-                                self.dispatchNotification(notificationInfo)
-                            }
-                        }
-                    }
-                }
-            default: return
-            }
-        }
-    }
     
-    func dispatchNotification(_ notificationInfo: NotificationInfo) {
+    func showNotification(_ notificationInfo: NotificationInfo) {
         if #available(iOS 15.0, *) {
-            let uuid = UUID.init().uuidString
+            let uuid = UUID().uuidString
             let currentTime = Date().timeIntervalSince1970
             let identifier = "\(IosCommunicationConstant.prefixIdentifier):\(uuid):\(currentTime)"
-
+            
             var content = UNMutableNotificationContent()
             
             content.title = notificationInfo.senderName
             content.subtitle = ""
             content.body = notificationInfo.content
-            content.sound = UNNotificationSound(named: UNNotificationSoundName(rawValue: "alarm"))
             content.categoryIdentifier = identifier
             content.userInfo = ["data": notificationInfo.value]
+            
+            let senderThumbnail: String = notificationInfo.avatar
+            
+            guard let senderThumbnailUrl: URL = URL(string: senderThumbnail) else {
+                return
+            }
+            
+            let senderThumbnailFileName: String = senderThumbnailUrl.lastPathComponent // we grab the last part in the hope it contains the actual filename (any-picture.jpg)
+            
+            guard let senderThumbnailImageData: Data = try? Data(contentsOf: senderThumbnailUrl),
+                  let senderThumbnailImageFileUrl: URL = try? downloadAttachment(data: senderThumbnailImageData, fileName: senderThumbnailFileName),
+                  let senderThumbnailImageFileData: Data = try? Data(contentsOf: senderThumbnailImageFileUrl) else {
+                
+                return
+            }
             
             var personNameComponents = PersonNameComponents()
             personNameComponents.nickname = notificationInfo.senderName
             
-            let avatar = INImage(imageData: notificationInfo.pngImage)
+            let avatar = INImage(imageData: senderThumbnailImageData)
             
             let senderPerson = INPerson(
                 personHandle: INPersonHandle(value: notificationInfo.value, type: .unknown),
@@ -97,16 +60,15 @@ class CommunicationNotificationPlugin {
                 suggestionType: .none
             )
             
-            
             let intent = INSendMessageIntent(
                 recipients: [mPerson],
                 outgoingMessageType: .outgoingMessageText,
-                content: notificationInfo.content,
-                speakableGroupName: INSpeakableString(spokenPhrase: notificationInfo.senderName),
+                content: content.body,
+                speakableGroupName: nil,
                 conversationIdentifier: notificationInfo.senderName,
                 serviceName: nil,
                 sender: senderPerson,
-                attachments: nil
+                attachments: []
             )
             
             intent.setImage(avatar, forParameterNamed: \.sender)
@@ -114,25 +76,45 @@ class CommunicationNotificationPlugin {
             let interaction = INInteraction(intent: intent, response: nil)
             interaction.direction = .incoming
             
-            interaction.donate(completion: nil)
-            
             do {
                 content = try content.updating(from: intent) as! UNMutableNotificationContent
             } catch {
-                // Handle errors
+                print("Error updating content from intent: \(error)")
             }
             
-            // Request from identifier
+            // Bildirim isteği oluşturma
             let request = UNNotificationRequest(identifier: identifier, content: content, trigger: nil)
             
-            // actions
-            let close = UNNotificationAction(identifier: "close", title: "Close", options: .destructive)
-            let category = UNNotificationCategory(identifier: identifier, actions: [close], intentIdentifiers: [])
+            // Aksiyonlar
+            // let close = UNNotificationAction(identifier: "close", title: "Close", options: .destructive)
+            // let category = UNNotificationCategory(identifier: identifier, actions: [close], intentIdentifiers: [])
             
-            UNUserNotificationCenter.current().setNotificationCategories([category])
+            // UNUserNotificationCenter.current().setNotificationCategories([category])
             
-            // Add notification request
+            // Bildirim isteğini ekle
             UNUserNotificationCenter.current().add(request)
+        }
+        
+        func downloadAttachment(data: Data, fileName: String) -> URL? {
+            // Create a temporary file URL to write the file data to
+            let fileManager = FileManager.default
+            let tmpSubFolderName = ProcessInfo.processInfo.globallyUniqueString
+            let tmpSubFolderURL = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent(tmpSubFolderName, isDirectory: true)
+            
+            do {
+                // prepare temp subfolder
+                try fileManager.createDirectory(at: tmpSubFolderURL, withIntermediateDirectories: true, attributes: nil)
+                let fileURL: URL = tmpSubFolderURL.appendingPathComponent(fileName)
+                
+                // Save the image data to the local file URL
+                try data.write(to: fileURL)
+                
+                return fileURL
+            } catch let error {
+                print("error \(error)")
+            }
+            
+            return nil
         }
     }
 }

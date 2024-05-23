@@ -1,16 +1,14 @@
-// ignore_for_file: public_member_api_docs, sort_constructors_first
 import 'dart:convert';
-import 'dart:typed_data';
 
 class NotificationInfo {
   final String senderName;
-  final Uint8List imageBytes;
+  final String avatar;
   final String content;
   final String value;
   final Function(String payload)? onPressed;
   NotificationInfo({
     required this.senderName,
-    required this.imageBytes,
+    required this.avatar,
     required this.content,
     required this.value,
     this.onPressed,
@@ -18,14 +16,14 @@ class NotificationInfo {
 
   NotificationInfo copyWith({
     String? senderName,
-    Uint8List? imageBytes,
+    String? avatar,
     String? content,
     String? value,
     Function(String payload)? onPressed,
   }) {
     return NotificationInfo(
       senderName: senderName ?? this.senderName,
-      imageBytes: imageBytes ?? this.imageBytes,
+      avatar: avatar ?? this.avatar,
       content: content ?? this.content,
       value: value ?? this.value,
       onPressed: onPressed ?? this.onPressed,
@@ -35,7 +33,7 @@ class NotificationInfo {
   Map<String, dynamic> toMap() {
     return <String, dynamic>{
       'senderName': senderName,
-      'imageBytes': imageBytes,
+      'avatar': avatar,
       'content': content,
       'value': value,
     };
@@ -45,7 +43,7 @@ class NotificationInfo {
 
   @override
   String toString() {
-    return 'NotificationInfo(senderName: $senderName, imageBytes: $imageBytes, content: $content, value: $value, onPressed: $onPressed)';
+    return 'NotificationInfo(senderName: $senderName, avatar: $avatar, content: $content, value: $value, onPressed: $onPressed)';
   }
 
   @override
@@ -53,7 +51,7 @@ class NotificationInfo {
     if (identical(this, other)) return true;
 
     return other.senderName == senderName &&
-        other.imageBytes == imageBytes &&
+        other.avatar == avatar &&
         other.content == content &&
         other.value == value &&
         other.onPressed == onPressed;
@@ -62,7 +60,7 @@ class NotificationInfo {
   @override
   int get hashCode {
     return senderName.hashCode ^
-        imageBytes.hashCode ^
+        avatar.hashCode ^
         content.hashCode ^
         value.hashCode ^
         onPressed.hashCode;

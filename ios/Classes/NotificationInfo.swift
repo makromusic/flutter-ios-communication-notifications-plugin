@@ -2,7 +2,7 @@ import Foundation
 
 struct NotificationInfo {
     var senderName: String
-    var pngImage: Data
+    var avatar: String
     var content: String
     var value: String
 }

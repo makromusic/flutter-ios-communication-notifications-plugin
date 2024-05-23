@@ -50,12 +50,9 @@ public class IosCommunicationNotificationPlugin: NSObject, FlutterPlugin {
             let arguments = call.arguments as? [String: Any] ?? [String: Any]()
             let senderName = arguments["senderName"] as? String ?? ""
             let content = arguments["content"] as? String ?? ""
-            guard let avatar = (arguments["imageBytes"] as? FlutterStandardTypedData)?.data else {
-                result(false)
-                return
-            }
+            let avatar = arguments["avatar"] as? String ?? ""
             let value = arguments["value"] as? String ?? ""
-            CommunicationNotificationPlugin().showNotification(NotificationInfo(senderName: senderName, pngImage: avatar, content: content, value: value))
+            CommunicationNotificationPlugin().showNotification(NotificationInfo(senderName: senderName, avatar: avatar, content: content, value: value))
             result(true)
             break
         case "isAvailable":
